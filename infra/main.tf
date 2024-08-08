@@ -10,7 +10,7 @@ terraform {
 
 # Providers
 provider "aws" {
-  region  = "us-east-1"
+  region  = "eu-central-1"
   profile = "default"
 }
 
@@ -18,10 +18,10 @@ provider "aws" {
 # Resource
 resource "aws_instance" "jenkins" {
   ami                    = var.ami
-  instance_type          = var.instance_type
+  instance_type          = var.sonar_instance_type
   key_name               = var.key_name
   subnet_id              = var.subnet_id_1a
-  vpc_security_group_ids = ["sg-0a3fe1b73a2b3e0d2"]
+  vpc_security_group_ids = ["sg-05b951b0eedad2b43"]
   iam_instance_profile   = var.iam_instance_profile
   #user_data              = file("/Users/ck/repos/iac-terraform/iac/web.sh")
   user_data = <<-EOF
@@ -54,14 +54,13 @@ resource "aws_instance" "jenkins" {
   }
 }
 
-
 # Resource
 resource "aws_instance" "sonarqube" {
   ami                    = var.ami
   instance_type          = var.sonar_instance_type
   key_name               = var.key_name
   subnet_id              = var.subnet_id_1a
-  vpc_security_group_ids = ["sg-0a3fe1b73a2b3e0d2"]
+  vpc_security_group_ids = ["sg-05b951b0eedad2b43"]
   iam_instance_profile   = var.iam_instance_profile
   #user_data              = file("/Users/ck/repos/iac-terraform/iac/web.sh")
   user_data = <<-EOF
@@ -105,72 +104,54 @@ resource "aws_instance" "sonarqube" {
 }
 
 
-# Resource
+#resource
 resource "aws_instance" "jfrog" {
   ami                    = var.ami
   instance_type          = var.sonar_instance_type
   key_name               = var.key_name
   subnet_id              = var.subnet_id_1a
-  vpc_security_group_ids = ["sg-0a3fe1b73a2b3e0d2"]
+  vpc_security_group_ids = ["sg-05b951b0eedad2b43"]
   iam_instance_profile   = var.iam_instance_profile
-  #user_data              = file("/Users/ck/repos/iac-terraform/iac/web.sh")
+
   user_data = <<-EOF
-  #!/bin/bash
-  sudo hostnamectl set-hostname "jfrog.cloudbinary.io"
-  echo "`hostname -I | awk '{ print $1}'` `hostname`" >> /etc/hosts
-  sudo apt-get update
-  sudo apt-get install vim curl elinks unzip wget tree git -y
-  sudo apt-get install openjdk-17-jdk -y
-  sudo cp -pvr /etc/environment "/etc/environment_$(date +%F_%R)"
-  echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/" >> /etc/environment
-  source /etc/environment
+    #!/bin/bash
+    sudo hostnamectl set-hostname "jfrog.cloudbinary.io"
+    echo "'hostname -I | awk '{print $1}'' 'hostname'">> /etc/hosts
+    sudo apt-get update
+    sudo apt-get install vim curl elinks unzip wget tree git -y
+    sudo apt-get install openjdk-17-jdk -y
+    sudo cp -pvr /etc/environment "/etc/environment_$(date +%F_%R)"
+    echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/" >> /etc/environment
+    source /etc/environment
 
-  cd /opt/
+    cd /opt/
   
-  #sudo wget https://releases.jfrog.io/artifactory/bintray-artifactory/org/artifactory/oss/jfrog-artifactory-oss/[RELEASE]/jfrog-artifactory-oss-[RELEASE]-linux.tar.gz
-  
-  sudo wget https://releases.jfrog.io/artifactory/bintray-artifactory/org/artifactory/oss/jfrog-artifactory-oss/7.71.3/jfrog-artifactory-oss-7.71.3-linux.tar.gz
-  
-  tar xvzf jfrog-artifactory-oss-7.71.3-linux.tar.gz
-  
-  mv artifactory-oss-* jfrog
-  
-  sudo cp -pvr /etc/environment "/etc/environment_$(date +%F_%R)"
-  
-  echo "JFROG_HOME=/opt/jfrog" >> /etc/environment
-  
-  #cd /opt/jfrog/app/bin/
-  
-  #./artifactory.sh status
-  
-  # Configure INIT Scripts for JFrog Artifactory
-  # sudo vi /etc/systemd/system/artifactory.service
+    sudo wget https://releases.jfrog.io/artifactory/bintray-artifactory/org/artifactory/oss/jfrog-artifactory-oss/7.71.3/jfrog-artifactory-oss-7.71.3-linux.tar.gz
+    
+    tar xvzf jfrog-artifactory-oss-7.71.3-linux.tar.gz
 
-  echo "[Unit]" > /etc/systemd/system/artifactory.service
-  echo "Description=JFrog artifactory service" >> /etc/systemd/system/artifactory.service
-  echo "After=syslog.target network.target" >> /etc/systemd/system/artifactory.service
-  echo "[Service]" >> /etc/systemd/system/artifactory.service
-  echo "Type=forking" >> /etc/systemd/system/artifactory.service
-  echo "ExecStart=/opt/jfrog/app/bin/artifactory.sh start" >> /etc/systemd/system/artifactory.service
-  echo "ExecStop=/opt/jfrog/app/bin/artifactory.sh stop" >> /etc/systemd/system/artifactory.service
-  echo "User=root" >> /etc/systemd/system/artifactory.service
-  echo "Group=root" >> /etc/systemd/system/artifactory.service 
-  echo "Restart=always" >> /etc/systemd/system/artifactory.service
-  echo "[Install]" >> /etc/systemd/system/artifactory.service
-  echo "WantedBy=multi-user.target" >> /etc/systemd/system/artifactory.service
+    sudo rm -rf jfrog-artifactory-oss-7.71.3-linux.tar.gz
+    
+    mv artifactory-oss-7.71.3 jfrog
+    
+    sudo cp -pvr /etc/environment "/etc/environment_$(date +%F_%R)"
+    
+    echo "JFROG_HOME=/opt/jfrog" >> /etc/environment
 
-  sudo systemctl daemon-reload
-  sudo systemctl enable artifactory.service
-  sudo systemctl restart artifactory.service
+    source /etc/environment
+    
+    cd /opt/jfrog/app/bin/
+    
+    sudo ./artifactory.sh status
+    sudo ./artifactory.sh start
 
-  #Sonar admin & admin | Jfrog admin & password 
 
-  EOF
+   EOF
 
   tags = {
     Name        = "JFrog"
     Environment = "Dev"
-    ProjectName = "Cloud Binary"
+    ProjectName = "cludbinary"
     ProjectID   = "2024"
     CreatedBy   = "IaC Terraform"
   }
@@ -180,10 +161,10 @@ resource "aws_instance" "jfrog" {
 # Resource
 resource "aws_instance" "tomcat" {
   ami                    = var.ami
-  instance_type          = var.instance_type
+  instance_type          = var.sonar_instance_type
   key_name               = var.key_name
   subnet_id              = var.subnet_id_1a
-  vpc_security_group_ids = ["sg-0a3fe1b73a2b3e0d2"]
+  vpc_security_group_ids = ["sg-05b951b0eedad2b43"]
   iam_instance_profile   = var.iam_instance_profile
   #user_data              = file("/Users/ck/repos/iac-terraform/iac/web.sh")
   user_data = <<-EOF
